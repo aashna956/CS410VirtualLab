@@ -17,6 +17,13 @@ do_search = () ->
       data: JSON.stringify
         query: query
         ranker: window.ranker
+        s: "0.22"
+        k1: "0.22"
+        b: "0.1"
+        k3: "0.1"
+        mu: "0.1"
+        d: "0.5"
+        lambda: "0.7"
       success: (data, stat, xhr) -> print_results JSON.parse(data)
       failure: (axhr, stat, err) ->
         $("#search_results_list").append("<li>Something bad happened!</li>")

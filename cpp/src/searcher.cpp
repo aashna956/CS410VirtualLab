@@ -11,6 +11,10 @@
 #include "meta/index/ranker/ranker.h"
 #include "meta/index/ranker/ranker_factory.h"
 #include "meta/index/ranker/okapi_bm25.h"
+#include "meta/index/ranker/pivoted_length.h"
+#include "meta/index/ranker/dirichlet_prior.h"
+#include "meta/index/ranker/jelinek_mercer.h"
+#include "meta/index/ranker/absolute_discount.h"
 #include "meta/logging/logger.h"
 #include "meta/util/time.h"
 #include "meta/io/filesystem.h"
@@ -47,8 +51,49 @@ std::string searcher::search(const std::string& request)
             std::unique_ptr<meta::index::ranker> ranker;
             try
             {
-                ranker = meta::index::ranker_factory::get().create(
-                    ranker_method, *config);
+                                // TODO:
+                // 1. front-end needs to send an array of params, figure out coffeescript
+                // 2. add conditionals for all given rankers and set params
+                // 3. why do doc_name() and doc_path() not work? 
+                if(!ranker_method.compare("pivoted-length")){
+                    double s=0.25;
+                    auto s_string = json_request["s"].asString();
+                    s = std::stod(s_string);
+                    std::cout << "using this" << s << std::endl;
+                    ranker = make_unique<meta::index::pivoted_length>(s);
+                }
+                else if(!ranker_method.compare("bm25")){
+                    double k1, b, k3;
+                    auto k1_string = json_request["k1"].asString();
+                    auto b_string = json_request["b"].asString();
+                    auto k3_string = json_request["k3"].asString();
+                    k1 = std::stod(k1_string);
+                    b = std::stod(b_string);
+                    k3 = std::stod(k3_string);
+                    std::cout << "using this" << k1 << b << k3 << std::endl;
+                    ranker = make_unique<meta::index::okapi_bm25>(k1,b,k3);
+                }
+                else if(!ranker_method.compare("dirichlet-prior")){
+                    double mu=0.25;
+                    auto mu_string = json_request["mu"].asString();
+                    mu = std::stod(mu_string);
+                    std::cout << "using this" << mu << std::endl;
+                    ranker = make_unique<meta::index::dirichlet_prior>(mu);
+                }
+                else if(!ranker_method.compare("jelinek-mercer")){
+                    double lambda=0.25;
+                    auto lambda_string = json_request["lambda"].asString();
+                    lambda = std::stod(lambda_string);
+                    std::cout << "using this" << lambda_string << std::endl;
+                    ranker = make_unique<meta::index::jelinek_mercer>(lambda);
+                }
+                else if(!ranker_method.compare("absolute-discount")){
+                    double delta=0.25;
+                    auto delta_string = json_request["d"].asString();
+                    delta = std::stod(delta_string);
+                    std::cout << "using this" << delta_string<< std::endl;
+                    ranker = make_unique<meta::index::absolute_discount>(delta); 
+                }
             }
             catch (meta::index::ranker_factory::exception& ex)
             {
