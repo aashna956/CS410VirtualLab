@@ -29,3 +29,11 @@ method = "bm25"
 k1 = 1.2
 b = 0.75
 k3 = 500
+
+[lda]
+inference = "gibbs"
+max-iters = 1000
+alpha = 1.0
+beta = 1.0
+topics = 4
+model-prefix = "lda-model"

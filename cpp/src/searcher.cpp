@@ -7,6 +7,16 @@
 #include <algorithm>
 #include <json/json.h>
 
+#include <functional>
+#include <iostream>
+#include <string>
+#include <vector>
+#include "meta/caching/all.h"
+#include "meta/classify/classifier/all.h"
+#include "meta/index/forward_index.h"
+#include "meta/index/ranker/all.h"
+#include "meta/parser/analyzers/tree_analyzer.h"
+#include "meta/sequence/analyzers/ngram_pos_analyzer.h"
 #include "meta/corpus/document.h"
 #include "meta/index/ranker/ranker.h"
 #include "meta/index/ranker/ranker_factory.h"
@@ -32,29 +42,84 @@ std::string searcher::search(const std::string& request)
     Json::Value json_request;
     Json::Reader reader;
     reader.parse(request.c_str(), json_request);
+    Json::Value json_ret{Json::objectValue};
+    json_ret["results"] = Json::arrayValue;
+
+    auto config = cpptoml::make_table();
+    auto method = json_request["method"].asString();
+/* TOPICS */
+if(method=="topics"){
+    auto num_words_string = json_request["num_words"].asString();
+    std::string filename = "lda-model.phi";
+    auto _config = cpptoml::parse_file("../config.toml");
+    auto idx = index::make_index<index::forward_index, caching::no_evict_cache>(*_config);
+    size_t num_words=std::stoi(num_words_string);
+    std::ifstream file{filename};
+    while (file)
+    {
+        std::string line;
+        std::getline(file, line);
+        if (line.length() == 0)
+            continue;
+        std::stringstream stream(line);
+        size_t topic;
+        stream >> topic;
+        std::cout << "Topic " << topic << ":" << std::endl;
+        std::cout << "-----------------------" << std::endl;
+
+        auto comp = [](const std::pair<term_id, double>& first,
+                       const std::pair<term_id, double>& second)
+        {
+            return first.second > second.second;
+        };
+        util::fixed_heap<std::pair<term_id, double>, decltype(comp)> pairs{
+            num_words, comp};
+
+        while (stream)
+        {
+            std::string to_split;
+            stream >> to_split;
+            if (to_split.length() == 0)
+                continue;
+            size_t idx = to_split.find_first_of(':');
+            term_id term{std::stoul(to_split.substr(0, idx))};
+            double prob = std::stod(to_split.substr(idx + 1));
+            pairs.emplace(term, prob);
+
+        }
+        for (const auto& p : pairs.extract_top()) {
+                Json::Value obj{Json::objectValue};
+                obj["topic"] = std::to_string(topic);
+                obj["term"] = idx->term_text(p.first);
+                obj["id"] = p.first;
+                obj["score"]= p.second;
+                json_ret["results"].append(obj);
+
+        }
+    }
+    Json::StyledWriter styled_writer;
+    auto json_str = styled_writer.write(json_ret);
+    std::cout << json_str;
+    return json_str;
+}
+/* ** */
+/* SEARCH */
+if(method=="search"){
     auto ranker_method = json_request["ranker"].asString();
     auto query_text = json_request["query"].asString();
 
     LOG(info) << "Running query using " << ranker_method << ": \""
               << query_text.substr(0, 40) << "...\"" << ENDLG;
 
-    Json::Value json_ret{Json::objectValue};
     meta::corpus::document query;
     query.content(query_text);
 
-    json_ret["results"] = Json::arrayValue;
-
-    auto config = cpptoml::make_table();
     auto elapsed = meta::common::time(
         [&]()
         {
             std::unique_ptr<meta::index::ranker> ranker;
             try
             {
-                                // TODO:
-                // 1. front-end needs to send an array of params, figure out coffeescript
-                // 2. add conditionals for all given rankers and set params
-                // 3. why do doc_name() and doc_path() not work? 
                 if(!ranker_method.compare("pivoted-length")){
                     double s=0.25;
                     auto s_string = json_request["s"].asString();
@@ -107,6 +172,7 @@ std::string searcher::search(const std::string& request)
                 Json::Value obj{Json::objectValue};
                 obj["score"] = result.score;
                 obj["name"] = idx_->doc_name(result.d_id);
+                
                 obj["path"] = idx_->doc_path(result.d_id);
                 json_ret["results"].append(obj);
             }
@@ -117,7 +183,9 @@ std::string searcher::search(const std::string& request)
     Json::StyledWriter styled_writer;
     auto json_str = styled_writer.write(json_ret);
     std::cout << json_str;
+    return json_str;
 
     LOG(info) << "Done running query. (" << elapsed.count() << "ms)" << ENDLG;
     return json_str;
+}
 }

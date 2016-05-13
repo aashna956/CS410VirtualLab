@@ -11,7 +11,40 @@
       <h1>CS 410 Virtual Lab
       </h1>
     </div>
+    <div class="input-group-btn search-panel col-xs-8 col-xs-offset-5">
+      <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+        <span id="method_t">Method</span>
+        <span class="caret"></span>
+      </button>
+      <ul class="dropdown-menu" role="menu">
+        <li id="search"><a href="#">Search</a></li>
+        <li id="topics"><a href="#">Topic Models</a></li>
+      </ul>
+    </div>
   </div>
+  <br>
+  <div class="topics-class" style="display:none">
+    <div class="col-xs-8 col-xs-offset-2">
+    <label for="num_words" id="num_words-label">Number of words </label>
+      <div class="input-group">
+        <input type="number" id="num_words" class="form-control">
+        <span class="input-group-btn">
+          <button class="btn btn-default" type="button" id="topic_button">
+            <span class="glyphicon glyphicon-search"></span>
+          </button>
+        </span>
+        </div>
+      </div>
+      <div class="container col-xs-8">
+        <div class="row">
+        <div class="container" id="topic_results">
+        <ul id="topic_results_list">
+        </ul>
+        </div>
+        </div>
+      </div>
+  </div>
+  <div class="search-class">
   <div class="row">
     <div class="col-xs-8 col-xs-offset-2">
       <div class="input-group">
@@ -74,6 +107,7 @@
       </div>
     </div>
   </div>
+</div>
 </body>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 <script src="javascript/bootstrap.min.js"></script>
